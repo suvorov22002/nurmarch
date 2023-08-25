@@ -2,7 +2,6 @@ package com.firstbank.arch.util;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -23,11 +22,18 @@ import java.util.stream.Stream;
 @Component
 public class ExtractImageFromPdf {
 
-	@Value("${application.path.scans}")
-	private String pathname;
+//	@Value("${application.path.scans}")
+//	private String pathname;
 
 	@Value("${application.path.in}")
 	private String filename;
+
+	@Value("${application.path.inputs}")
+	private String inputs;
+
+	@Value("${application.path.scans}")
+	private String scans;
+
 
 	/**
 	 * read all pdf in directory and store it in set.
@@ -65,72 +71,106 @@ public class ExtractImageFromPdf {
 	 */
 	public List<String> extractJPGImage(final Set<String> listSet) throws InterruptedException {
 
-		if (listSet.isEmpty()) {
-			return Collections.emptyList();
-		}
-
 		final List<String> listSetpack = new ArrayList<>();
-		final List<Callable<List<String>>> tasks = new ArrayList<>();
 
-		// On recupere le nombre de coeur du processeur pour lancer les jobs en parrallèle
-		final int threadCount = Math.min(
-				Runtime.getRuntime().availableProcessors(),
-				listSet.size()
-		);
+		if (listSet.isEmpty()) {
+//			return Collections.emptyList();
+			// Si le repertoire in est vide on vérifie s'il ya les dossiers orphelins dans scan
+			File directory = new File(scans);
+			Set<String> listScansOrphanDirectory;
+			ExtractImagesUseCase useCase;
+			Path path;
 
-		final ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+			if (directory.exists() && directory.isDirectory()) {
 
-		File directory = new File(filename);
+				try (Stream<Path> stream = Files.list(Paths.get(directory.getAbsolutePath()))) {
 
-		try {
+					listScansOrphanDirectory =  stream
+							.filter(Files::isDirectory)
+							.map(Path::getFileName)
+							.map(Path::toString)
+							.collect(Collectors.toSet());
 
-			for (final String file : listSet) {
+					for(String dir : listScansOrphanDirectory) {
 
-				tasks.add(
-						() -> {
-							Path filePath;
-							filePath = Paths.get(directory.getAbsolutePath(), file);
-							Path path;
-							List<String> listBase64;
-
-							if (FilenameUtils.getExtension(file).equals("pdf")) {
-
-								// On Crée le repertoire de même nom dans scan pour stocker les images extraites
-								path = Paths.get(pathname + FilenameUtils.removeExtension(file));
-								Files.createDirectories(path);
-
-								// On lit le fichier correspondant dans le repertoire in pour commencer l'extraction
-								// on indique le repertoire de stockage des images scan
-								ExtractImagesUseCase useCase = new ExtractImagesUseCase(filePath.toString(), path.toString());
-								listBase64 = useCase.execute();
-
-								return listBase64;
-
-							}
-							return null;
-						}
-				);
-			}
-
-			// On lance toutes les tâches parallèles et on attend leur realisation
-			for (final Future<List<String>> f : executor.invokeAll(tasks)) {
-
-				try {
-
-					if(f.get() != null) {
-						listSetpack.addAll(f.get());
+						path = Paths.get(scans + dir);
+						useCase = new ExtractImagesUseCase(path.toString(), scans, inputs);
+						useCase.processFile2(path.toString());
 					}
 
-
-				} catch (final ExecutionException e) {
-					// This request failed.  Handle it however you like.
 				}
-
+				catch (IOException ex){
+					log.info("Erreur de parcours de scan");
+				}
 			}
 
-		} finally {
-			executor.shutdown();
 		}
+		else{
+
+			final List<Callable<List<String>>> tasks = new ArrayList<>();
+
+			// On recupere le nombre de coeur du processeur pour lancer les jobs en parrallèle
+			final int threadCount = Math.min(
+					Runtime.getRuntime().availableProcessors(),
+					listSet.size()
+			);
+
+			final ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+
+			File directory = new File(filename);
+
+			try {
+
+				for (final String file : listSet) {
+
+					tasks.add(
+							() -> {
+								Path filePath;
+								filePath = Paths.get(directory.getAbsolutePath(), file);
+								Path path;
+								List<String> listBase64;
+
+								if (FilenameUtils.getExtension(file).equals("pdf")) {
+
+									// On Crée le repertoire de même nom dans scan pour stocker les images extraites
+									path = Paths.get(scans + FilenameUtils.removeExtension(file));
+									Files.createDirectories(path);
+
+									// On lit le fichier correspondant dans le repertoire in pour commencer l'extraction
+									// on indique le repertoire de stockage des images scan
+									ExtractImagesUseCase useCase = new ExtractImagesUseCase(filePath.toString(), path.toString(), scans, inputs);
+									listBase64 = useCase.execute();
+
+									return listBase64;
+
+								}
+								return null;
+							}
+					);
+				}
+
+				// On lance toutes les tâches parallèles et on attend leur realisation
+				for (final Future<List<String>> f : executor.invokeAll(tasks)) {
+
+					try {
+
+						if(f.get() != null) {
+							listSetpack.addAll(f.get());
+						}
+
+
+					} catch (final ExecutionException e) {
+						// This request failed.  Handle it however you like.
+					}
+
+				}
+
+			} finally {
+				executor.shutdown();
+			}
+		}
+
+
 
 		return listSetpack;
 	}

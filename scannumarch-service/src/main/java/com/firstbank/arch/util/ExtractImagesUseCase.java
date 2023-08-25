@@ -28,22 +28,35 @@ import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 
 import com.firstbank.arch.util.code.Barcode;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 public class ExtractImagesUseCase extends PDFStreamEngine{
 
-	private final String filePath;
+	private String filePath;
     private final String outputDir;
-    
+	private String inputs;
+	private String scans;
     private List<String> listBase64;
-
 	private int nbrePages;
-    
-    public ExtractImagesUseCase(String filePath, String outputDir){
+
+	public ExtractImagesUseCase(String outputDir, String scans, String inputs){
+
+		this.outputDir = outputDir;
+		this.scans = scans;
+		this.inputs = inputs;
+
+	}
+
+	public ExtractImagesUseCase(String filePath, String outputDir, String scans, String inputs){
+
 		this.filePath = filePath;
 		this.outputDir = outputDir;
+		this.scans = scans;
+		this.inputs = inputs;
 		listBase64 = new ArrayList<>();
+
 	}
     
     public List<String> execute() throws IOException{
@@ -52,13 +65,14 @@ public class ExtractImagesUseCase extends PDFStreamEngine{
 		byte[] bytes = FileUtils.readFileToByteArray(file);
 
 		try(PDDocument document = PDDocument.load(bytes)) {
+
 			nbrePages = document.getNumberOfPages();
 
 			for(PDPage page : document.getPages()){
                 processPage(page);
-             }
-            
-             processFile2(this.outputDir);
+			}
+
+			processFile2(this.outputDir);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -108,7 +122,7 @@ public class ExtractImagesUseCase extends PDFStreamEngine{
 	public Integer processFile2(String outDir) throws InterruptedException {
 
 		List<String> swap;
-		List<Data> result = new ArrayList<Data>();
+		List<Data> result = new ArrayList<>();
 		Barcode brd = new Barcode();
 		swap = brd.decodeFolderBis(outDir);
 
@@ -130,18 +144,16 @@ public class ExtractImagesUseCase extends PDFStreamEngine{
 	   List<String> doublon = new ArrayList<>(2);
 	   Data data;
 	   String[] result;
-	   String ss;
+	   //String ss;
 	   List<String> _swap = swap.subList(0, swap.size() - 1);
 	   String folder = swap.get(swap.size() - 1);
 
-	   String str;
 	   for (String s : _swap) {
-		   data = new Data();
-		   str = s;
 
-		   ss = str;
+		   data = new Data();
+
 //		   log.info("SS-----:  " + ss);
-		   result = ss.split(";");
+		   result = s.split(";");
 		   data.setFoldername(folder);
 
 
@@ -154,16 +166,16 @@ public class ExtractImagesUseCase extends PDFStreamEngine{
 
 			   doublon.add(result[1]);
 //	        	System.out.println("result[0]: "+result[0]);
-	        	System.out.println("doublon size: "+doublon.size());
+//			   System.out.println("doublon size: "+doublon.size());
 			   if (doublon.size() == 2 && doublon.get(0).equals(doublon.get(1))) {
 
 				   data = resData.get(resData.size() - 1);
 				   //	System.out.println("doublon data-0: "+doublon.get(0)+";"+data.getFilename());
 				   //	System.out.println("doublon data-1: "+doublon.get(1));
 				   try {
-					   FileUtils.deleteDirectory(new File("C://numarch//inputs/" + data.getFoldername() + "/" + FilenameUtils.removeExtension(data.getFilename()) + "/" + data.getFilename()));
+					   FileUtils.deleteDirectory(new File(inputs + String.join("/", data.getFoldername(),
+							   FilenameUtils.removeExtension(data.getFilename()), data.getFilename())));
 				   } catch (IOException e) {
-					   // TODO Auto-generated catch block
 					   e.printStackTrace();
 				   }
 				   data.setDonne("ERROR");
@@ -176,14 +188,14 @@ public class ExtractImagesUseCase extends PDFStreamEngine{
 			   if (doublon.size() == 3 && doublon.get(1).equals(doublon.get(2))) {
 
 				   data = resData.get(resData.size() - 1);
-				   // 	System.out.println("doublon data-0: "+doublon.get(0)+";"+data.getFilename());
-				   // 	System.out.println("doublon data-1: "+doublon.get(1));
+
 				   try {
-					   FileUtils.deleteDirectory(new File("C://numarch//inputs/" + data.getFoldername() + "/" + FilenameUtils.removeExtension(data.getFilename()) + "/" + data.getFilename()));
+					   FileUtils.deleteDirectory(new File(inputs + String.join("/", data.getFoldername(),
+							   FilenameUtils.removeExtension(data.getFilename()), data.getFilename())));
 				   } catch (IOException e) {
-					   // TODO Auto-generated catch block
 					   e.printStackTrace();
 				   }
+
 				   data.setDonne("ERROR");
 				   data.setDecode(Boolean.FALSE);
 				   //resData.remove(resData.size() - 1);
@@ -209,66 +221,44 @@ public class ExtractImagesUseCase extends PDFStreamEngine{
 
    private Integer createInputFiles(List<Data> folderData) {
 
-	   String interFolder = "";
 	   String prevFolder = "";
-	   Path path, tmpPath;
-	   Path source;
-	   Path target;
+	   Path path;
+	   Path tmpPath;
 	   List<String> transDirectories = new ArrayList<>();
 	   Integer numDossierFound = 0;
-//		CopyOption[] options = { StandardCopyOption.REPLACE_EXISTING,
-//               StandardCopyOption.COPY_ATTRIBUTES,
-//               LinkOption.NOFOLLOW_LINKS };
-	   //System.out.println(" data.size(): "+ folderData.size());
+
 	   for(Data data : folderData) {
-		   //	System.out.println(" data.getFoldername(): "+ data.getFoldername());
+
 		   try {
 
-			   path = Paths.get("C://numarch/inputs/" + data.getFoldername());
+			   path = Paths.get(inputs + data.getFoldername());
 
 			   if(!Files.exists(path)) {
+
 				   Files.createDirectories(path);
 
-				   if(!transDirectories.isEmpty()) {
-					   interFolder = transDirectories.get(transDirectories.size() - 1);
-					   tmpPath = Paths.get("C://numarch/inputs/" + prevFolder + "/" + FilenameUtils.removeExtension(interFolder));
-					   Files.createDirectories(tmpPath);
-
-					   for (String p : transDirectories) {
-						   source = Paths.get("C://numarch/scans/" +prevFolder + "/" + p);
-						   target = Paths.get("C://numarch/inputs/" + prevFolder + "/" + FilenameUtils.removeExtension(interFolder) + "/" + p);
-
-						   //Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-						   Files.copy(source, target);
-					   }
-					   String ch = "C://numarch/inputs/" + prevFolder + "/" + FilenameUtils.removeExtension(interFolder) + "/";
-					   extracted(null, ch);
-					   numDossierFound++;
-					   transDirectories.clear();
-				   }
+				   numDossierFound = getnumDossierFound(prevFolder, transDirectories, numDossierFound);
 			   }
+
 			   prevFolder = data.getFoldername();
-			   if(!data.getDecode()) {
+			   transDirectories.add(data.getFilename());
 
-				   transDirectories.add(data.getFilename());
+			   if(Boolean.TRUE.equals(data.getDecode())) {
 
-			   } else {
-				   transDirectories.add(data.getFilename());
-				   tmpPath = Paths.get("C://numarch/inputs/" + data.getFoldername() + "/" + FilenameUtils.removeExtension(data.getFilename()));
+				   tmpPath = Paths.get(inputs + String.join("/", data.getFoldername(), FilenameUtils.removeExtension(data.getFilename())));
+
 				   Files.createDirectories(tmpPath);
 
-
-				   for (String p : transDirectories) {
-
-					   source = Paths.get("C://numarch/scans/" + data.getFoldername() + "/" + p);
-					   target = Paths.get("C://numarch/inputs/" + data.getFoldername() + "/" + FilenameUtils.removeExtension(data.getFilename()) + "/" + p);
-
-					   //	Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-					   //copyFile(String chemin1, String chemin2 );
-					   Files.copy(source, target);
-
-				   }
-
+				   // Copie des fichier de scan vers inputs
+//				   for (String p : transDirectories) {
+//
+//					   source = Paths.get(scans + String.join("/", data.getFoldername(), p));
+//					   target = Paths.get(inputs + String.join("/", data.getFoldername(), FilenameUtils.removeExtension(data.getFilename()), p));
+//
+//					   Files.copy(source, target);
+//
+//				   }
+				   moveFileToDirectory(transDirectories, data.getFoldername(), data.getFilename());
 
 				   //		System.out.println("Data: " + (count++) + " | " + data.getData());
 				   extracted(data, null);
@@ -284,24 +274,7 @@ public class ExtractImagesUseCase extends PDFStreamEngine{
 
 	   try {
 
-		   if(!transDirectories.isEmpty()) {
-			   interFolder = transDirectories.get(transDirectories.size() - 1);
-			   tmpPath = Paths.get("C://numarch/inputs/" + prevFolder + "/" + FilenameUtils.removeExtension(interFolder));
-			   Files.createDirectories(tmpPath);
-
-			   for (String p : transDirectories) {
-				   source = Paths.get("C://numarch/scans/" + prevFolder + "/" + p);
-				   target = Paths.get("C://numarch/inputs/" + prevFolder + "/" + FilenameUtils.removeExtension(interFolder) + "/" + p);
-
-				   //	Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-				   Files.copy(source, target);
-
-			   }
-			   String ch = "C://numarch/inputs/" + prevFolder + "/" + FilenameUtils.removeExtension(interFolder) + "/";
-			   extracted(null, ch);
-			   numDossierFound++;
-			   transDirectories.clear();
-		   }
+		   numDossierFound = getnumDossierFound(prevFolder, transDirectories, numDossierFound);
 
 	   } catch (IOException e) {
 		   e.printStackTrace();
@@ -310,67 +283,112 @@ public class ExtractImagesUseCase extends PDFStreamEngine{
 
 	   try {
 
-		   System.out.println("--- Suppression du repertoire scan ---");
+		   log.info("--- Suppression du repertoire scan ---");
 		   FileUtils.deleteDirectory(new File(this.outputDir));
 
-	   } catch (IOException e) {
+	   } catch (Exception e) {
 		   e.printStackTrace();
 	   }
+
+	   //
 
 	   return numDossierFound;
 
    }
 
-   private void extracted(Data data, String prevFolder){
+	private Integer getnumDossierFound(String prevFolder, List<String> transDirectories, Integer numDossierFound) throws IOException {
 
-	   org.json.simple.JSONObject fileResponseObject;
-	   String respData;
-	   fileResponseObject = new org.json.simple.JSONObject();
-	   Path filesPath = null;
+		String interFolder;
+		Path tmpPath;
+		if(!transDirectories.isEmpty()) {
+
+			interFolder = transDirectories.get(transDirectories.size() - 1);
+			tmpPath = Paths.get(inputs + String.join("/", prevFolder, FilenameUtils.removeExtension(interFolder)));
+
+			Files.createDirectories(tmpPath);
+
+			moveFileToDirectory(transDirectories, prevFolder, interFolder);
+			String ch = inputs + prevFolder + "/" + FilenameUtils.removeExtension(interFolder) + "/";
+			extracted(null, ch);
+			numDossierFound++;
+			transDirectories.clear();
+		}
+		return numDossierFound;
+	}
+
+	private void moveFileToDirectory(List<String> transDirectories, String prevFolder,String interFolder) {
+		Path source;
+		Path target;
+
+		for (String p : transDirectories) {
+			source = Paths.get(scans + String.join("/", prevFolder, p));
+			target = Paths.get(inputs + String.join("/", prevFolder, FilenameUtils.removeExtension(interFolder), p));
+
+			try {
+				Files.copy(source, target);
+			} catch (IOException e) {
+				log.info("Probleme lors de la copie vers inputs");
+			}
+
+		}
+	}
+
+	private void extracted(Data data, String prevFolder){
+
+		org.json.simple.JSONObject fileResponseObject;
+		String respData;
+		fileResponseObject = new org.json.simple.JSONObject();
+		Path filesPath;
 
 
-	   try {
-		   if (data != null) {
-			   respData = data.getDonne();
+		try {
 
-			   fileResponseObject.put("setEve", respData.substring(0, 6));
-			   fileResponseObject.put("setAge", respData.substring(6, 11));
-			   fileResponseObject.put("setNcp", respData.substring(11, 22));
-			   fileResponseObject.put("setCle", respData.substring(22, 24));
-			   fileResponseObject.put("setDco", respData.substring(24, 32));
-			   fileResponseObject.put("setUti", respData.substring(32, 36));
-			   fileResponseObject.put("setMon", Integer.parseInt(respData.substring(36, 50).split(",")[0]));
-			   fileResponseObject.put("setType", respData.substring(50));
+			if (data != null) {
 
-			   filesPath = Paths.get("C://numarch/inputs/" + data.getFoldername() + "/" + FilenameUtils.removeExtension(data.getFilename()) + "/data.json");
-			   System.out.println("Data not null: " + filePath);
-		   } else {
+				respData = data.getDonne();
 
-			   fileResponseObject.put("setEve", "");
-			   fileResponseObject.put("setAge", "");
-			   fileResponseObject.put("setNcp", "");
-			   fileResponseObject.put("setCle", "");
-			   fileResponseObject.put("setDco", "");
-			   fileResponseObject.put("setUti", "");
-			   fileResponseObject.put("setMon", 0);
-			   fileResponseObject.put("setType", "");
+				fileResponseObject.put("setEve", respData.substring(0, 6));
+				fileResponseObject.put("setAge", respData.substring(6, 11));
+				fileResponseObject.put("setNcp", respData.substring(11, 22));
+				fileResponseObject.put("setCle", respData.substring(22, 24));
+				fileResponseObject.put("setDco", respData.substring(24, 32));
+				fileResponseObject.put("setUti", respData.substring(32, 36));
+				fileResponseObject.put("setMon", Integer.parseInt(respData.substring(36, 50).split(",")[0]));
+				fileResponseObject.put("setType", respData.substring(50));
 
-			   filesPath = Paths.get(prevFolder + "/data.json");
-			   System.out.println("Data null: " + filesPath);
-		   }
+				filesPath = Paths.get(inputs + String.join("/", data.getFoldername(),
+						FilenameUtils.removeExtension(data.getFilename()), "data.json"));
 
-		   // Ecriture dans le fichier
-		   try(
-				   FileWriter file = new FileWriter(filesPath.toString(), true);
-				   BufferedWriter bw = new BufferedWriter(file);
-		   ) {
-			   bw.write(fileResponseObject.toJSONString());
-			   bw.newLine();
-		   }
+				log.info("Data not null: {} - {} - {}", respData.substring(0, 6),  respData.substring(11, 22)
+						, respData.substring(50));
 
-	   } catch(Exception e) {
-		   e.printStackTrace();
-	   }
+			} else {
+
+				fileResponseObject.put("setEve", "");
+				fileResponseObject.put("setAge", "");
+				fileResponseObject.put("setNcp", "");
+				fileResponseObject.put("setCle", "");
+				fileResponseObject.put("setDco", "");
+				fileResponseObject.put("setUti", "");
+				fileResponseObject.put("setMon", 0);
+				fileResponseObject.put("setType", "");
+
+				filesPath = Paths.get(prevFolder + "/data.json");
+				log.info("Data null: " + filesPath);
+			}
+
+			// Ecriture dans le fichier
+			try(
+					FileWriter file = new FileWriter(filesPath.toString(), true);
+					BufferedWriter bw = new BufferedWriter(file);
+			) {
+				bw.write(fileResponseObject.toJSONString());
+				bw.newLine();
+			}
+
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
    }
 
 }

@@ -185,20 +185,28 @@ public class FileService {
 
 			//System.out.println("parent: "+varia.toString());
 
-			HttpHeaders head = new HttpHeaders();
-			head.setContentType(MediaType.APPLICATION_JSON);
-			restTemplate = new RestTemplate();
-			HttpEntity<String> reqEntity = new HttpEntity<>(varia.toString(), head);
-			log.info("DATA-FOLDER: " + urlFolder + "/" + reper);
 
-			JSONObject folderID = restTemplate.postForObject(urlFolder, reqEntity, JSONObject.class);
-
+//			JSONObject folderID = restTemplate.postForObject(urlFolder, reqEntity, JSONObject.class);
+			String nomFichier;
 //			String nomFichier = mapDocuments.get("afbm:docRef") + "_" +mapDocuments.get("afbm:unitCode") + "_" + mapDocuments.get("afbm:trxAcc").split("-")[0];
-			String nomFichier = String.join("_", mapDocuments.get("afbm:docRef"),
-					mapDocuments.get("afbm:unitCode"), mapDocuments.get("afbm:trxAcc").split("-")[0]);
+//			nomFichier = String.join("_", mapDocuments.get("afbm:docRef"),
+//					mapDocuments.get("afbm:unitCode"), mapDocuments.get("afbm:trxAcc").split("-")[0]);
+//
+			String timestampTraitement = FilenameUtils.removeExtension(file.getName());
+			String[] interTraitementArray = timestampTraitement.split("_");
+			if (interTraitementArray.length == 2) {
+				timestampTraitement = interTraitementArray[0];
+			}
+			else if(interTraitementArray.length == 3) {
+				timestampTraitement = interTraitementArray[1];
+			}
+			//OPE-DATE_OPE-CPT-EVE-ONDB-Nombre aléatoire
+			nomFichier = String.join("_", mapDocuments.get("afbm:docType"), mapDocuments.get("afbm:trxDate"), mapDocuments.get("afbm:trxAcc").split("-")[0],
+					mapDocuments.get("afbm:docRef"), timestampTraitement);
 
 			data.put("dateKeys", "afbm:trxDate");
-			data.put("fileName", "arch_" + file.getName().replace("tmp_", "") + "_" + nomFichier);
+//			data.put("fileName", "arch_" + file.getName().replace("tmp_", "").replace("image-", "") + "_" + nomFichier);
+			data.put("fileName", "arch_" + nomFichier);
 			data.put("rootPath", "/Sites/afriland/documentLibrary");
 			data.put("destPath", destfolder+'/'+reper);
 			data.put("aspects", defaultAspect);
@@ -211,7 +219,17 @@ public class FileService {
 			//System.out.println("Valid JSON: "+isValid(metadata.toString()));
 			data.put("metadata", metadata);
 
+			// Creation du dossier du site afriland dans acs
+			log.info("FILE-NAME: {}", nomFichier);
 			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			restTemplate = new RestTemplate();
+			HttpEntity<String> reqEntity = new HttpEntity<>(varia.toString(), headers);
+			log.info("DATA-FOLDER: " + urlFolder + "/" + reper);
+			restTemplate.postForObject(urlFolder, reqEntity, JSONObject.class);
+
+			// Envoi du fichier et des metadata dans acs
+			headers = new HttpHeaders();
 			headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
 			MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();

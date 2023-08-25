@@ -170,7 +170,7 @@ public class Barcode {
 			// BarcodeReader.initLicense("t0072oQAAACpX0I+ZaCto/PfnHQzFcnwEbNytI/V88hjSSiiyYRk+x8NFKSTi0ephQOR2Utb78fqaHr50tRi90MZ3zA44HrIE5CMG");
 			// BarcodeReader.initLicense("t0072oQAAAC2O/CM7L76WA3yutR6VauDhkeWHpFJOqE+JUw/00RtEGashX8GG6bwg3vX0/RZVQoBcmTIHPJFeu7RymCGaxnrOECI0");
 			// BarcodeReader.initLicense("t0072oQAAAKHV4zm8uV9o/K3LPdz+p46/yupG7u1je7cUzulduoyGYEAjOqvonscNrZBB4O5WhbJLpmOCAIlSp24RhvZG+PTH5SIl");
-			 //BarcodeReader.initLicense("t0072oQAAAKqvmZqYD8GY4HUJwElVJFMx4iuqirTg9tKPMhBBn9FpkU1uBcCLNUL/QZOSRuLb4SE35oM77mTAmbeat6Ka1zjXxyJa");
+			//BarcodeReader.initLicense("t0072oQAAAKqvmZqYD8GY4HUJwElVJFMx4iuqirTg9tKPMhBBn9FpkU1uBcCLNUL/QZOSRuLb4SE35oM77mTAmbeat6Ka1zjXxyJa");
 
 			BarcodeReader.initLicense("f0068fQAAAEy/mNjcEb2d9bhd05AsnrvrLqmGo82Ri2ost1t7EJxgYISy8ayLSXgMqVYd3kb2/g8OjMFQuFXMBRJSFl1u3N4=");
 
@@ -334,6 +334,8 @@ public class Barcode {
 
 		assert listFileSets != null;
 		List<File> listOfFilesOrder = Arrays.asList(listFileSets);
+
+		// Ordonne les fichiers par ordre naturel (dès la page 1 du pdf reçu)
 		listOfFilesOrder.sort(new SortFileByName());
 
 		List<File> listOfFilesOrdered =  listOfFilesOrder.stream()
@@ -345,7 +347,7 @@ public class Barcode {
 		return swap;
 	}
 
-	private List<String> extractQRCodeBis(final List<File> listOfFilesOrder, String folder) throws InterruptedException {
+	private List<String> extractQRCodeBis_Old(final List<File> listOfFilesOrder, String folder) throws InterruptedException {
 
 		if (listOfFilesOrder.isEmpty()) {
 			return Collections.emptyList();
@@ -388,6 +390,34 @@ public class Barcode {
 			}
 		} finally {
 			executor.shutdown();
+		}
+
+		return listSetpack;
+	}
+
+	private List<String> extractQRCodeBis(final List<File> listOfFilesOrder, String folder) {
+
+		if (listOfFilesOrder.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<String> listSetpack = new ArrayList<>();
+
+		try {
+			String ref;
+			List<String> swap;
+
+			for (final File file : listOfFilesOrder) {
+
+				ref = file.getName();
+				swap = new ArrayList<>();
+				String res = decode(folder + "/" + ref);
+				swap.add(res);
+				listSetpack.addAll(swap);
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
 		return listSetpack;

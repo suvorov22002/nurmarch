@@ -31,17 +31,17 @@ public class FileController {
 
     }
 
-    @GetMapping(path = "/images")
-    public Integer extractImages() {
-
-        try {
-            return extractImageService.extractImages();
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
-        return 0;
-
-    }
+//    @GetMapping(path = "/images")
+//    public Integer extractImages() {
+//
+//        try {
+//            return extractImageService.extractImages();
+//        } catch (IOException | InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//        return 0;
+//
+//    }
 
     @GetMapping(path = "/images/process-img")
     public  Integer processImages() {
@@ -55,18 +55,18 @@ public class FileController {
 
     }
 
-    @GetMapping(path = "/images/qrcode")
-    public  Integer extractQrCode() {
-
-        try {
-            return readQrCodeService.processFile2();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        return 0;
-
-    }
+//    @GetMapping(path = "/images/qrcode")
+//    public  Integer extractQrCode() {
+//
+//        try {
+//            return readQrCodeService.processFile2();
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//
+//        return 0;
+//
+//    }
 
 
 }

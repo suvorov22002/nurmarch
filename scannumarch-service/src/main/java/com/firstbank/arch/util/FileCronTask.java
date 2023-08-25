@@ -1,5 +1,13 @@
 package com.firstbank.arch.util;
 
+import com.firstbank.arch.service.FileService;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -14,23 +22,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.firstbank.arch.service.FileService;
-import com.firstbank.arch.util.RefactorDateUtil;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-
 @Slf4j
 @Component
 public class FileCronTask {
 
 	//private static final Logger logger = LoggerFactory.getLogger(FileCronTask.class);
-	private static final String PATHNAME = "C://numarch/alfresco/";
+	//private static final String PATHNAME = "C://numarch/alfresco/";
+
+	@Value("${application.path.alfresco}")
+	private String pathname;
 
 	@Value("${application.cron.time}")
 	private String timer;
@@ -46,13 +46,14 @@ public class FileCronTask {
 
 	@Scheduled(cron = "0 */${application.cron.time} * ? * *")
 	public void scheduleTaskFixedDelay(){
-  org.json.simple.JSONArray fileResponseLists;
-  org.json.simple.JSONObject fileResponseObject;
+
+		  org.json.simple.JSONArray fileResponseLists;
+		  org.json.simple.JSONObject fileResponseObject;
 
 		log.info("scheduleTaskFixedDelay executed at {}", LocalDateTime.now());
 
-		File directory = new File(PATHNAME);
-		Set<String> listDoc = new HashSet<>();
+		File directory = new File(pathname);
+		Set<String> listDoc;
 
 //		System.out.println("Parameter.timer: "+timer);
 
@@ -67,7 +68,7 @@ public class FileCronTask {
 			try (Stream<Path> stream = Files.list(Paths.get(directory.getAbsolutePath()))) {
 
 				listDoc =  stream
-						.filter(file -> Files.isDirectory(file))
+						.filter(Files::isDirectory)
 						.map(Path::getFileName)
 						.map(Path::toString)
 						.collect(Collectors.toSet());
@@ -87,7 +88,7 @@ public class FileCronTask {
 						result = fileservice.pushToAlfresco(toSend);
 						//	System.out.println(res);
 
-						if (toSend != null) {
+						if (result != null) {
 
 							fileResponseObject.put("filename", toSend);
 							fileResponseObject.put("lien", result);
@@ -100,37 +101,13 @@ public class FileCronTask {
 
 					} catch (IOException e) {
 						e.printStackTrace();
-						System.out.println("ERROR LORS DE LA SUPRESSION DU DOSSIER");
+						log.info("ERROR LORS DE LA SUPPRESSION DU DOSSIER");
 					}
 
 				}
 
-//				listDoc.forEach(dir -> {
-//					String res;
-//					try {
-//						
-//						fileResponseObject = new org.json.simple.JSONObject();
-//					//	System.out.println(dir);
-//						res = fileservice.pushToAlfresco(dir);
-//					//	System.out.println(res);
-//						
-//						if (res != null) {
-//							
-//							fileResponseObject.put("filename", dir);
-//							fileResponseObject.put("lien", res);
-//							fileResponseLists.add(fileResponseObject);
-//							FileUtils.deleteDirectory(Paths.get(directory.getAbsolutePath(), dir).toFile());
-//						
-//						}
-//						
-//					} catch (IOException e) {
-//						e.printStackTrace();
-//						System.out.println("ERROR LORS DE LA SUPRESSION DU DOSSIER");
-//					}
-//					
-//				});
-
 				if (!fileResponseLists.isEmpty()) {
+
 					Path filePath = Paths.get(directory.getAbsolutePath(), RefactorDateUtil.now() + "_AlfrecoDoc.json");
 					try (FileWriter file = new FileWriter(filePath.toString(), true);
 						 BufferedWriter bw = new BufferedWriter(file);) {
